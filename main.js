@@ -1,5 +1,5 @@
-import "./style.css";
-import { Elm } from "./src/Main.elm";
+import "./style.css"
+import { Elm } from "./src/Main.elm"
 
 if (process.env.NODE_ENV === "development") {
     const ElmDebugTransform = await import("elm-debug-transformer")
@@ -9,5 +9,13 @@ if (process.env.NODE_ENV === "development") {
     })
 }
 
-const root = document.querySelector("#app div");
-const app = Elm.Main.init({ node: root });
+const flags = {
+    options: localStorage.options ? JSON.parse(localStorage.options) : null
+}
+const root = document.querySelector("#app div")
+const app = Elm.Main.init({ node: root, flags })
+
+app.ports.save.subscribe(options => {
+    console.log(options)
+    localStorage.options = JSON.stringify(options)
+})

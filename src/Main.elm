@@ -1,14 +1,14 @@
-module Main exposing (..)
+module Main exposing (main)
 
 import Browser
 import Dict
 import Element as E
-import Element.Background as EB
 import Element.Border as EBO
 import Element.Font as EF
 import Element.Input as EI
 import Html.Events
 import Json.Decode
+import Ports
 import Random
 import Set exposing (Set)
 
@@ -18,10 +18,14 @@ import Set exposing (Set)
 -- TODO: katakana version
 
 
-main : Program () Model Msg
+type alias Flags =
+    { options : Maybe Options }
+
+
+main : Program Flags Model Msg
 main =
     Browser.element
-        { init = \() -> init
+        { init = init
         , view = E.layout [] << view
         , update = update
         , subscriptions = \_ -> Sub.none
@@ -55,19 +59,30 @@ type alias Options =
     }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( { hiraganas = [ 'あ' ]
-      , answer = ""
-      , error = False
-      , corrects = 0
-      , incorrects = 0
-      , errors = Set.empty
-      , reviewing = False
-      , options = initOptions
-      }
-    , generateHiraganas initOptions
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    let
+        options : Options
+        options =
+            flags.options
+                |> Maybe.withDefault initOptions
+    in
+    ( { initModel | options = options }
+    , generateHiraganas options
     )
+
+
+initModel : Model
+initModel =
+    { hiraganas = []
+    , answer = ""
+    , error = False
+    , corrects = 0
+    , incorrects = 0
+    , errors = Set.empty
+    , reviewing = False
+    , options = initOptions
+    }
 
 
 initOptions : Options
@@ -173,15 +188,20 @@ update msg model =
                     , o.hiraganasR
                     , o.hiraganasW
                     ]
-                        |> List.any identity
+                        |> List.all not
             in
-            ( if noCharacterSelected then
-                newModel
+            if noCharacterSelected then
+                ( model, Cmd.none )
 
-              else
-                model
-            , Cmd.none
-            )
+            else
+                ( newModel
+                , case inputType of
+                    Answer _ ->
+                        Cmd.none
+
+                    _ ->
+                        Ports.save newModel.options
+                )
 
         Submit ->
             if matches model.hiraganas model.answer then
@@ -204,9 +224,6 @@ update msg model =
 
         ChangeLevel ->
             let
-                ( newModel, _ ) =
-                    init
-
                 { options } =
                     model
 
@@ -217,8 +234,11 @@ update msg model =
                 newOptions =
                     { options | level = level }
             in
-            ( { newModel | options = newOptions }
-            , generateHiraganas newOptions
+            ( { initModel | options = newOptions }
+            , Cmd.batch
+                [ generateHiraganas newOptions
+                , Ports.save newOptions
+                ]
             )
 
         Review ->
@@ -227,11 +247,7 @@ update msg model =
             )
 
         Reset ->
-            let
-                ( newModel, _ ) =
-                    init
-            in
-            ( { newModel | options = model.options }
+            ( { initModel | options = model.options }
             , generateHiraganas model.options
             )
 
@@ -503,15 +519,11 @@ view model =
               else
                 E.el [ E.centerX, E.paddingXY 0 4 ] <|
                     viewButton Review ("Review " ++ String.fromInt errors ++ " error" ++ plural)
-            , if model == Tuple.first init then
-                E.none
-
-              else
-                E.el [ E.centerX, E.paddingXY 0 4 ] <|
-                    viewButton Reset "Reset"
+            , E.el [ E.centerX, E.paddingXY 0 4 ] <|
+                viewButton Reset "Reset"
             ]
         , E.column [ E.height E.fill, E.paddingXY 64 32, E.spacing 12, E.centerX, EBO.rounded 8, EBO.width 1 ]
-            [ E.paragraph [] [ E.text "Settings" ]
+            [ E.paragraph [ E.paddingEach { bottom = 16, top = 0, left = 0, right = 0 } ] [ E.text "Options" ]
             , viewCheckbox
                 { onChange = OnInput << HiraganasVowels
                 , label = "Vowels"
