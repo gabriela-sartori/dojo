@@ -13,5 +13,6 @@ port save :
     , hiraganasY : Bool
     , hiraganasR : Bool
     , hiraganasW : Bool
+    , hiraganasHandakuten : Bool
     }
     -> Cmd msg

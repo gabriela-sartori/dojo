@@ -10,12 +10,11 @@ if (process.env.NODE_ENV === "development") {
 }
 
 const flags = {
-    options: localStorage.options ? JSON.parse(localStorage.options) : null
+    options: localStorage.options ? localStorage.options : null
 }
 const root = document.querySelector("#app div")
 const app = Elm.Main.init({ node: root, flags })
 
 app.ports.save.subscribe(options => {
-    console.log(options)
     localStorage.options = JSON.stringify(options)
 })

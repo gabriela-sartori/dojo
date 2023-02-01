@@ -7,7 +7,8 @@ import Element.Border as EBO
 import Element.Font as EF
 import Element.Input as EI
 import Html.Events
-import Json.Decode
+import Json.Decode as JD exposing (Decoder)
+import Json.Decode.Pipeline as JD
 import Ports
 import Random
 import Set exposing (Set)
@@ -19,7 +20,7 @@ import Set exposing (Set)
 
 
 type alias Flags =
-    { options : Maybe Options }
+    { options : Maybe String }
 
 
 main : Program Flags Model Msg
@@ -56,6 +57,7 @@ type alias Options =
     , hiraganasY : Bool
     , hiraganasR : Bool
     , hiraganasW : Bool
+    , hiraganasHandakuten : Bool
     }
 
 
@@ -65,6 +67,29 @@ init flags =
         options : Options
         options =
             flags.options
+                |> Maybe.andThen
+                    (\unparsedOptions ->
+                        let
+                            decoder : Decoder Options
+                            decoder =
+                                JD.succeed Options
+                                    |> JD.optional "level" JD.int 1
+                                    |> JD.optional "hiraganasVowels" JD.bool False
+                                    |> JD.optional "hiraganasK" JD.bool False
+                                    |> JD.optional "hiraganasS" JD.bool False
+                                    |> JD.optional "hiraganasT" JD.bool False
+                                    |> JD.optional "hiraganasN" JD.bool False
+                                    |> JD.optional "hiraganasH" JD.bool False
+                                    |> JD.optional "hiraganasM" JD.bool False
+                                    |> JD.optional "hiraganasY" JD.bool False
+                                    |> JD.optional "hiraganasR" JD.bool False
+                                    |> JD.optional "hiraganasW" JD.bool False
+                                    |> JD.optional "hiraganasHandakuten" JD.bool False
+                        in
+                        unparsedOptions
+                            |> JD.decodeString decoder
+                            |> Result.toMaybe
+                    )
                 |> Maybe.withDefault initOptions
     in
     ( { initModel | options = options }
@@ -98,6 +123,7 @@ initOptions =
     , hiraganasY = False
     , hiraganasR = False
     , hiraganasW = False
+    , hiraganasHandakuten = False
     }
 
 
@@ -122,6 +148,7 @@ type InputType
     | HiraganasY Bool
     | HiraganasR Bool
     | HiraganasW Bool
+    | HiraganasHandakuten Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -170,6 +197,9 @@ update msg model =
                         HiraganasW value ->
                             { model | options = { options | hiraganasW = value } }
 
+                        HiraganasHandakuten value ->
+                            { model | options = { options | hiraganasHandakuten = value } }
+
                 noCharacterSelected : Bool
                 noCharacterSelected =
                     let
@@ -187,6 +217,7 @@ update msg model =
                     , o.hiraganasY
                     , o.hiraganasR
                     , o.hiraganasW
+                    , o.hiraganasHandakuten
                     ]
                         |> List.all not
             in
@@ -321,6 +352,7 @@ allHiraganas =
     , hiraganasY
     , hiraganasR
     , hiraganasW
+    , hiraganasHandakuten
     ]
         |> List.concat
 
@@ -374,6 +406,11 @@ optionsToHiraganas options =
         []
     , if options.hiraganasW then
         hiraganasW
+
+      else
+        []
+    , if options.hiraganasHandakuten then
+        hiraganasHandakuten
 
       else
         []
@@ -463,6 +500,15 @@ hiraganasR =
 hiraganasW =
     [ ( 'わ', "wa" )
     , ( 'を', "wo" )
+    ]
+
+
+hiraganasHandakuten =
+    [ ( 'ぱ', "pa" )
+    , ( 'ぴ', "pi" )
+    , ( 'ぷ', "pu" )
+    , ( 'ぺ', "pe" )
+    , ( 'ぽ', "po" )
     ]
 
 
@@ -574,6 +620,11 @@ view model =
                 , label = "W-"
                 , checked = model.options.hiraganasW
                 }
+            , viewCheckbox
+                { onChange = OnInput << HiraganasHandakuten
+                , label = "Handakuten ゜"
+                , checked = model.options.hiraganasHandakuten
+                }
             ]
         ]
 
@@ -605,14 +656,14 @@ onEnter : msg -> E.Attribute msg
 onEnter msg =
     E.htmlAttribute
         (Html.Events.on "keyup"
-            (Json.Decode.field "key" Json.Decode.string
-                |> Json.Decode.andThen
+            (JD.field "key" JD.string
+                |> JD.andThen
                     (\key ->
                         if key == "Enter" then
-                            Json.Decode.succeed msg
+                            JD.succeed msg
 
                         else
-                            Json.Decode.fail "Not the enter key"
+                            JD.fail "Not the enter key"
                     )
             )
         )
