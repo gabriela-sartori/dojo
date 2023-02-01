@@ -238,10 +238,6 @@ update msg model =
                     , o.hiraganasY
                     , o.hiraganasR
                     , o.hiraganasW
-                    , o.hiraganasHandakuten
-                    , o.hiraganasDakuten
-                    , o.hiraganasYouon
-                    , o.hiraganasSokuon
                     ]
                         |> List.all not
             in
@@ -377,9 +373,27 @@ allHiraganas =
     , hiraganasR
     , hiraganasW
     , hiraganasHandakuten
-    , hiraganasDakuten
-    , hiraganasYouon
-    , hiraganasSokuon
+    , hiraganasDakutenK
+    , hiraganasDakutenS
+    , hiraganasDakutenT
+    , hiraganasDakutenH
+    , hiraganasYouonK
+    , hiraganasYouonS
+    , hiraganasYouonT
+    , hiraganasYouonN
+    , hiraganasYouonH
+    , hiraganasYouonM
+    , hiraganasYouonR
+    , hiraganasYouonG
+    , hiraganasYouonZ
+    , hiraganasYouonD
+    , hiraganasYouonB
+    , hiraganasYouonP
+    , hiraganasSokuonK
+    , hiraganasSokuonS
+    , hiraganasSokuonT
+    , hiraganasSokuonHandakuten
+    , hiraganasSokuonDakuten
     ]
         |> List.concat
 
@@ -396,10 +410,28 @@ optionsToHiraganas options =
     , ( options.hiraganasY, hiraganasY )
     , ( options.hiraganasR, hiraganasR )
     , ( options.hiraganasW, hiraganasW )
-    , ( options.hiraganasHandakuten, hiraganasHandakuten )
-    , ( options.hiraganasDakuten, hiraganasDakuten )
-    , ( options.hiraganasYouon, hiraganasYouon )
-    , ( options.hiraganasSokuon, hiraganasSokuon )
+    , ( options.hiraganasHandakuten && options.hiraganasH, hiraganasHandakuten )
+    , ( options.hiraganasDakuten && options.hiraganasK, hiraganasDakutenK )
+    , ( options.hiraganasDakuten && options.hiraganasS, hiraganasDakutenS )
+    , ( options.hiraganasDakuten && options.hiraganasT, hiraganasDakutenT )
+    , ( options.hiraganasDakuten && options.hiraganasH, hiraganasDakutenH )
+    , ( options.hiraganasYouon && options.hiraganasK, hiraganasYouonK )
+    , ( options.hiraganasYouon && options.hiraganasS, hiraganasYouonS )
+    , ( options.hiraganasYouon && options.hiraganasT, hiraganasYouonT )
+    , ( options.hiraganasYouon && options.hiraganasN, hiraganasYouonN )
+    , ( options.hiraganasYouon && options.hiraganasH, hiraganasYouonH )
+    , ( options.hiraganasYouon && options.hiraganasM, hiraganasYouonM )
+    , ( options.hiraganasYouon && options.hiraganasR, hiraganasYouonR )
+    , ( options.hiraganasYouon && options.hiraganasK && options.hiraganasDakuten, hiraganasYouonG )
+    , ( options.hiraganasYouon && options.hiraganasS && options.hiraganasDakuten, hiraganasYouonZ )
+    , ( options.hiraganasYouon && options.hiraganasT && options.hiraganasDakuten, hiraganasYouonD )
+    , ( options.hiraganasYouon && options.hiraganasH && options.hiraganasDakuten, hiraganasYouonB )
+    , ( options.hiraganasYouon && options.hiraganasH && options.hiraganasHandakuten, hiraganasYouonP )
+    , ( options.hiraganasSokuon && options.hiraganasK, hiraganasSokuonK )
+    , ( options.hiraganasSokuon && options.hiraganasS, hiraganasSokuonS )
+    , ( options.hiraganasSokuon && options.hiraganasT, hiraganasSokuonT )
+    , ( options.hiraganasSokuon && options.hiraganasHandakuten, hiraganasSokuonHandakuten )
+    , ( options.hiraganasSokuon && options.hiraganasDakuten, hiraganasSokuonDakuten )
     ]
         |> List.filter (\( option, _ ) -> option)
         |> List.map Tuple.second
@@ -500,23 +532,35 @@ hiraganasHandakuten =
     ]
 
 
-hiraganasDakuten =
+hiraganasDakutenK =
     [ ( "が", "ga" )
     , ( "ぎ", "gi" )
     , ( "ぐ", "gu" )
     , ( "げ", "ge" )
     , ( "ご", "go" )
-    , ( "ざ", "za" )
+    ]
+
+
+hiraganasDakutenS =
+    [ ( "ざ", "za" )
     , ( "じ", "ji" )
     , ( "ず", "zu" )
     , ( "ぜ", "ze" )
     , ( "ぞ", "zo" )
-    , ( "だ", "da" )
+    ]
+
+
+hiraganasDakutenT =
+    [ ( "だ", "da" )
     , ( "ぢ", "dji" )
     , ( "づ", "dzu" )
     , ( "で", "de" )
     , ( "ど", "do" )
-    , ( "ば", "ba" )
+    ]
+
+
+hiraganasDakutenH =
+    [ ( "ば", "ba" )
     , ( "び", "bi" )
     , ( "ぶ", "bu" )
     , ( "べ", "be" )
@@ -524,50 +568,128 @@ hiraganasDakuten =
     ]
 
 
-hiraganasYouon =
+hiraganasYouonK =
     [ ( "きゃ", "kya" )
     , ( "きゅ", "kyu" )
     , ( "きょ", "kyo" )
-    , ( "しゃ", "sha" )
+    ]
+
+
+hiraganasYouonS =
+    [ ( "しゃ", "sha" )
     , ( "しゅ", "shu" )
     , ( "しょ", "sho" )
-    , ( "ちゃ", "cha" )
+    ]
+
+
+hiraganasYouonT =
+    [ ( "ちゃ", "cha" )
     , ( "ちゅ", "chu" )
     , ( "ちょ", "cho" )
-    , ( "にゃ", "nya" )
+    ]
+
+
+hiraganasYouonN =
+    [ ( "にゃ", "nya" )
     , ( "にゅ", "nyu" )
     , ( "にょ", "nyo" )
-    , ( "ひゃ", "hya" )
+    ]
+
+
+hiraganasYouonH =
+    [ ( "ひゃ", "hya" )
     , ( "ひゅ", "hyu" )
     , ( "ひょ", "hyo" )
-    , ( "みゃ", "mya" )
+    ]
+
+
+hiraganasYouonM =
+    [ ( "みゃ", "mya" )
     , ( "みゅ", "myu" )
     , ( "みょ", "myo" )
     ]
 
 
-hiraganasSokuon =
+hiraganasYouonR =
+    [ ( "りゃ", "rya" )
+    , ( "りゅ", "ryu" )
+    , ( "りょ", "ryo" )
+    ]
+
+
+hiraganasYouonG =
+    [ ( "ぎゃ", "gya" )
+    , ( "ぎゅ", "gyu" )
+    , ( "ぎょ", "gyo" )
+    ]
+
+
+hiraganasYouonZ =
+    [ ( "じゃ", "ja" )
+    , ( "じゅ", "ju" )
+    , ( "じょ", "jo" )
+    ]
+
+
+hiraganasYouonD =
+    [ ( "ぢゃ", "dya" )
+    , ( "ぢゅ", "dyu" )
+    , ( "ぢょ", "dyo" )
+    ]
+
+
+hiraganasYouonB =
+    [ ( "びゃ", "bya" )
+    , ( "びゅ", "byu" )
+    , ( "びょ", "byo" )
+    ]
+
+
+hiraganasYouonP =
+    [ ( "ぴゃ", "pya" )
+    , ( "ぴゅ", "pyu" )
+    , ( "ぴょ", "pyo" )
+    ]
+
+
+hiraganasSokuonK =
     [ ( "っか", "kka" )
     , ( "っき", "kki" )
     , ( "っく", "kku" )
     , ( "っけ", "kke" )
     , ( "っこ", "kko" )
-    , ( "っさ", "ssa" )
+    ]
+
+
+hiraganasSokuonS =
+    [ ( "っさ", "ssa" )
     , ( "っし", "sshi" )
     , ( "っす", "ssu" )
     , ( "っせ", "sse" )
     , ( "っそ", "sso" )
-    , ( "った", "tta" )
+    ]
+
+
+hiraganasSokuonT =
+    [ ( "った", "tta" )
     , ( "っち", "tchi" )
     , ( "っつ", "ttsu" )
     , ( "って", "tte" )
     , ( "っと", "tto" )
-    , ( "っば", "bba" )
+    ]
+
+
+hiraganasSokuonHandakuten =
+    [ ( "っば", "bba" )
     , ( "っび", "bbi" )
     , ( "っぶ", "bbu" )
     , ( "っべ", "bbe" )
     , ( "っぼ", "bbo" )
-    , ( "っぱ", "ppa" )
+    ]
+
+
+hiraganasSokuonDakuten =
+    [ ( "っぱ", "ppa" )
     , ( "っぴ", "ppi" )
     , ( "っぷ", "ppu" )
     , ( "っぺ", "ppe" )
@@ -683,6 +805,7 @@ view model =
                 , label = "W-"
                 , checked = model.options.hiraganasW
                 }
+            , E.el [ E.paddingXY 0 4 ] E.none
             , viewCheckbox
                 { onChange = OnInput << HiraganasHandakuten
                 , label = "Handakuten ゜"
