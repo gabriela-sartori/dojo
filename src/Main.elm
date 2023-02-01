@@ -58,6 +58,7 @@ type alias Options =
     , hiraganasR : Bool
     , hiraganasW : Bool
     , hiraganasHandakuten : Bool
+    , hiraganasDakuten : Bool
     }
 
 
@@ -85,6 +86,7 @@ init flags =
                                     |> JD.optional "hiraganasR" JD.bool False
                                     |> JD.optional "hiraganasW" JD.bool False
                                     |> JD.optional "hiraganasHandakuten" JD.bool False
+                                    |> JD.optional "hiraganasDakuten" JD.bool False
                         in
                         unparsedOptions
                             |> JD.decodeString decoder
@@ -124,6 +126,7 @@ initOptions =
     , hiraganasR = False
     , hiraganasW = False
     , hiraganasHandakuten = False
+    , hiraganasDakuten = False
     }
 
 
@@ -149,6 +152,7 @@ type InputType
     | HiraganasR Bool
     | HiraganasW Bool
     | HiraganasHandakuten Bool
+    | HiraganasDakuten Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -200,6 +204,9 @@ update msg model =
                         HiraganasHandakuten value ->
                             { model | options = { options | hiraganasHandakuten = value } }
 
+                        HiraganasDakuten value ->
+                            { model | options = { options | hiraganasDakuten = value } }
+
                 noCharacterSelected : Bool
                 noCharacterSelected =
                     let
@@ -218,6 +225,7 @@ update msg model =
                     , o.hiraganasR
                     , o.hiraganasW
                     , o.hiraganasHandakuten
+                    , o.hiraganasDakuten
                     ]
                         |> List.all not
             in
@@ -353,6 +361,7 @@ allHiraganas =
     , hiraganasR
     , hiraganasW
     , hiraganasHandakuten
+    , hiraganasDakuten
     ]
         |> List.concat
 
@@ -411,6 +420,11 @@ optionsToHiraganas options =
         []
     , if options.hiraganasHandakuten then
         hiraganasHandakuten
+
+      else
+        []
+    , if options.hiraganasDakuten then
+        hiraganasDakuten
 
       else
         []
@@ -509,6 +523,30 @@ hiraganasHandakuten =
     , ( 'ぷ', "pu" )
     , ( 'ぺ', "pe" )
     , ( 'ぽ', "po" )
+    ]
+
+
+hiraganasDakuten =
+    [ ( 'が', "ga" )
+    , ( 'ぎ', "gi" )
+    , ( 'ぐ', "gu" )
+    , ( 'げ', "ge" )
+    , ( 'ご', "go" )
+    , ( 'ざ', "za" )
+    , ( 'じ', "ji" )
+    , ( 'ず', "zu" )
+    , ( 'ぜ', "ze" )
+    , ( 'ぞ', "zo" )
+    , ( 'だ', "da" )
+    , ( 'ぢ', "dji" )
+    , ( 'づ', "dzu" )
+    , ( 'で', "de" )
+    , ( 'ど', "do" )
+    , ( 'ば', "ba" )
+    , ( 'び', "bi" )
+    , ( 'ぶ', "bu" )
+    , ( 'べ', "be" )
+    , ( 'ぼ', "bo" )
     ]
 
 
@@ -624,6 +662,11 @@ view model =
                 { onChange = OnInput << HiraganasHandakuten
                 , label = "Handakuten ゜"
                 , checked = model.options.hiraganasHandakuten
+                }
+            , viewCheckbox
+                { onChange = OnInput << HiraganasDakuten
+                , label = "Dakuten ゛"
+                , checked = model.options.hiraganasDakuten
                 }
             ]
         ]
