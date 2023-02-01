@@ -11,7 +11,8 @@
     "build": "vite build",
     "serve": "vite preview",
     "lint": "elm-review",
-    "test": "elm-test-rs"
+    "test": "elm-test-rs",
+    "deploy": "npm run build && npx surge dist kawaii-dojo.surge.sh"
   },
   "devDependencies": {
     "elm-tooling": "^1.10.0",
