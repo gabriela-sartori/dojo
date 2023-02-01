@@ -34,12 +34,12 @@ main =
 
 
 type alias Model =
-    { hiraganas : List Char
+    { hiraganas : List String
     , answer : String
     , error : Bool
     , corrects : Int
     , incorrects : Int
-    , errors : Set Char
+    , errors : Set String
     , reviewing : Bool
     , options : Options
     }
@@ -59,6 +59,8 @@ type alias Options =
     , hiraganasW : Bool
     , hiraganasHandakuten : Bool
     , hiraganasDakuten : Bool
+    , hiraganasYouon : Bool
+    , hiraganasSokuon : Bool
     }
 
 
@@ -87,6 +89,8 @@ init flags =
                                     |> JD.optional "hiraganasW" JD.bool False
                                     |> JD.optional "hiraganasHandakuten" JD.bool False
                                     |> JD.optional "hiraganasDakuten" JD.bool False
+                                    |> JD.optional "hiraganasYouon" JD.bool False
+                                    |> JD.optional "hiraganasSokuon" JD.bool False
                         in
                         unparsedOptions
                             |> JD.decodeString decoder
@@ -127,11 +131,13 @@ initOptions =
     , hiraganasW = False
     , hiraganasHandakuten = False
     , hiraganasDakuten = False
+    , hiraganasYouon = False
+    , hiraganasSokuon = False
     }
 
 
 type Msg
-    = GotHiraganas (List Char)
+    = GotHiraganas (List String)
     | OnInput InputType
     | Submit
     | ChangeLevel
@@ -153,6 +159,8 @@ type InputType
     | HiraganasW Bool
     | HiraganasHandakuten Bool
     | HiraganasDakuten Bool
+    | HiraganasYouon Bool
+    | HiraganasSokuon Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -207,6 +215,12 @@ update msg model =
                         HiraganasDakuten value ->
                             { model | options = { options | hiraganasDakuten = value } }
 
+                        HiraganasYouon value ->
+                            { model | options = { options | hiraganasYouon = value } }
+
+                        HiraganasSokuon value ->
+                            { model | options = { options | hiraganasSokuon = value } }
+
                 noCharacterSelected : Bool
                 noCharacterSelected =
                     let
@@ -226,6 +240,8 @@ update msg model =
                     , o.hiraganasW
                     , o.hiraganasHandakuten
                     , o.hiraganasDakuten
+                    , o.hiraganasYouon
+                    , o.hiraganasSokuon
                     ]
                         |> List.all not
             in
@@ -299,43 +315,43 @@ generateHiraganas options =
                 |> optionsToHiraganas
                 |> List.map Tuple.first
 
-        generator : Random.Generator Char
+        generator : Random.Generator String
         generator =
             case availableHiraganas of
                 h :: tail ->
                     Random.uniform h tail
 
                 _ ->
-                    Random.constant '?'
+                    Random.constant "?"
     in
     generator
         |> Random.list options.level
         |> Random.generate GotHiraganas
 
 
-generateReviewHiragana : Set Char -> Cmd Msg
+generateReviewHiragana : Set String -> Cmd Msg
 generateReviewHiragana errors =
     let
-        generator : Random.Generator Char
+        generator : Random.Generator String
         generator =
             case Set.toList errors of
                 h :: tail ->
                     Random.uniform h tail
 
                 _ ->
-                    Random.constant '?'
+                    Random.constant "?"
     in
     generator
         |> Random.map List.singleton
         |> Random.generate GotHiraganas
 
 
-matches : List Char -> String -> Bool
+matches : List String -> String -> Bool
 matches hiragana input =
     hiraganaToRomaji hiragana == String.trim input
 
 
-hiraganaToRomaji : List Char -> String
+hiraganaToRomaji : List String -> String
 hiraganaToRomaji hiraganas =
     hiraganas
         |> List.map
@@ -348,7 +364,7 @@ hiraganaToRomaji hiraganas =
         |> String.join ""
 
 
-allHiraganas : List ( Char, String )
+allHiraganas : List ( String, String )
 allHiraganas =
     [ hiraganasVowels
     , hiraganasK
@@ -362,191 +378,200 @@ allHiraganas =
     , hiraganasW
     , hiraganasHandakuten
     , hiraganasDakuten
+    , hiraganasYouon
+    , hiraganasSokuon
     ]
         |> List.concat
 
 
-optionsToHiraganas : Options -> List ( Char, String )
+optionsToHiraganas : Options -> List ( String, String )
 optionsToHiraganas options =
-    [ if options.hiraganasVowels then
-        hiraganasVowels
-
-      else
-        []
-    , if options.hiraganasK then
-        hiraganasK
-
-      else
-        []
-    , if options.hiraganasS then
-        hiraganasS
-
-      else
-        []
-    , if options.hiraganasT then
-        hiraganasT
-
-      else
-        []
-    , if options.hiraganasN then
-        hiraganasN
-
-      else
-        []
-    , if options.hiraganasH then
-        hiraganasH
-
-      else
-        []
-    , if options.hiraganasM then
-        hiraganasM
-
-      else
-        []
-    , if options.hiraganasY then
-        hiraganasY
-
-      else
-        []
-    , if options.hiraganasR then
-        hiraganasR
-
-      else
-        []
-    , if options.hiraganasW then
-        hiraganasW
-
-      else
-        []
-    , if options.hiraganasHandakuten then
-        hiraganasHandakuten
-
-      else
-        []
-    , if options.hiraganasDakuten then
-        hiraganasDakuten
-
-      else
-        []
+    [ ( options.hiraganasVowels, hiraganasVowels )
+    , ( options.hiraganasK, hiraganasK )
+    , ( options.hiraganasS, hiraganasS )
+    , ( options.hiraganasT, hiraganasT )
+    , ( options.hiraganasN, hiraganasN )
+    , ( options.hiraganasH, hiraganasH )
+    , ( options.hiraganasM, hiraganasM )
+    , ( options.hiraganasY, hiraganasY )
+    , ( options.hiraganasR, hiraganasR )
+    , ( options.hiraganasW, hiraganasW )
+    , ( options.hiraganasHandakuten, hiraganasHandakuten )
+    , ( options.hiraganasDakuten, hiraganasDakuten )
+    , ( options.hiraganasYouon, hiraganasYouon )
+    , ( options.hiraganasSokuon, hiraganasSokuon )
     ]
+        |> List.filter (\( option, _ ) -> option)
+        |> List.map Tuple.second
         |> List.concat
 
 
 hiraganasVowels =
-    [ ( 'あ', "a" )
-    , ( 'い', "i" )
-    , ( 'う', "u" )
-    , ( 'え', "e" )
-    , ( 'お', "o" )
+    [ ( "あ", "a" )
+    , ( "い", "i" )
+    , ( "う", "u" )
+    , ( "え", "e" )
+    , ( "お", "o" )
     ]
 
 
 hiraganasK =
-    [ ( 'か', "ka" )
-    , ( 'き', "ki" )
-    , ( 'く', "ku" )
-    , ( 'け', "ke" )
-    , ( 'こ', "ko" )
+    [ ( "か", "ka" )
+    , ( "き", "ki" )
+    , ( "く", "ku" )
+    , ( "け", "ke" )
+    , ( "こ", "ko" )
     ]
 
 
 hiraganasS =
-    [ ( 'さ', "sa" )
-    , ( 'し', "shi" )
-    , ( 'す', "su" )
-    , ( 'せ', "se" )
-    , ( 'そ', "so" )
+    [ ( "さ", "sa" )
+    , ( "し", "shi" )
+    , ( "す", "su" )
+    , ( "せ", "se" )
+    , ( "そ", "so" )
     ]
 
 
 hiraganasT =
-    [ ( 'た', "ta" )
-    , ( 'ち', "chi" )
-    , ( 'つ', "tsu" )
-    , ( 'て', "te" )
-    , ( 'と', "to" )
+    [ ( "た", "ta" )
+    , ( "ち", "chi" )
+    , ( "つ", "tsu" )
+    , ( "て", "te" )
+    , ( "と", "to" )
     ]
 
 
 hiraganasN =
-    [ ( 'な', "na" )
-    , ( 'に', "ni" )
-    , ( 'ぬ', "nu" )
-    , ( 'ね', "ne" )
-    , ( 'の', "no" )
+    [ ( "な", "na" )
+    , ( "に", "ni" )
+    , ( "ぬ", "nu" )
+    , ( "ね", "ne" )
+    , ( "の", "no" )
     ]
 
 
 hiraganasH =
-    [ ( 'は', "ha" )
-    , ( 'ひ', "hi" )
-    , ( 'ふ', "fu" )
-    , ( 'へ', "he" )
-    , ( 'ほ', "ho" )
+    [ ( "は", "ha" )
+    , ( "ひ", "hi" )
+    , ( "ふ", "fu" )
+    , ( "へ", "he" )
+    , ( "ほ", "ho" )
     ]
 
 
 hiraganasM =
-    [ ( 'ま', "ma" )
-    , ( 'み', "mi" )
-    , ( 'む', "mu" )
-    , ( 'め', "me" )
-    , ( 'も', "mo" )
+    [ ( "ま", "ma" )
+    , ( "み", "mi" )
+    , ( "む", "mu" )
+    , ( "め", "me" )
+    , ( "も", "mo" )
     ]
 
 
 hiraganasY =
-    [ ( 'や', "ya" )
-    , ( 'ゆ', "yu" )
-    , ( 'よ', "yo" )
+    [ ( "や", "ya" )
+    , ( "ゆ", "yu" )
+    , ( "よ", "yo" )
     ]
 
 
 hiraganasR =
-    [ ( 'ら', "ra" )
-    , ( 'り', "ri" )
-    , ( 'る', "ru" )
-    , ( 'れ', "re" )
-    , ( 'ろ', "ro" )
+    [ ( "ら", "ra" )
+    , ( "り", "ri" )
+    , ( "る", "ru" )
+    , ( "れ", "re" )
+    , ( "ろ", "ro" )
     ]
 
 
 hiraganasW =
-    [ ( 'わ', "wa" )
-    , ( 'を', "wo" )
+    [ ( "わ", "wa" )
+    , ( "を", "wo" )
     ]
 
 
 hiraganasHandakuten =
-    [ ( 'ぱ', "pa" )
-    , ( 'ぴ', "pi" )
-    , ( 'ぷ', "pu" )
-    , ( 'ぺ', "pe" )
-    , ( 'ぽ', "po" )
+    [ ( "ぱ", "pa" )
+    , ( "ぴ", "pi" )
+    , ( "ぷ", "pu" )
+    , ( "ぺ", "pe" )
+    , ( "ぽ", "po" )
     ]
 
 
 hiraganasDakuten =
-    [ ( 'が', "ga" )
-    , ( 'ぎ', "gi" )
-    , ( 'ぐ', "gu" )
-    , ( 'げ', "ge" )
-    , ( 'ご', "go" )
-    , ( 'ざ', "za" )
-    , ( 'じ', "ji" )
-    , ( 'ず', "zu" )
-    , ( 'ぜ', "ze" )
-    , ( 'ぞ', "zo" )
-    , ( 'だ', "da" )
-    , ( 'ぢ', "dji" )
-    , ( 'づ', "dzu" )
-    , ( 'で', "de" )
-    , ( 'ど', "do" )
-    , ( 'ば', "ba" )
-    , ( 'び', "bi" )
-    , ( 'ぶ', "bu" )
-    , ( 'べ', "be" )
-    , ( 'ぼ', "bo" )
+    [ ( "が", "ga" )
+    , ( "ぎ", "gi" )
+    , ( "ぐ", "gu" )
+    , ( "げ", "ge" )
+    , ( "ご", "go" )
+    , ( "ざ", "za" )
+    , ( "じ", "ji" )
+    , ( "ず", "zu" )
+    , ( "ぜ", "ze" )
+    , ( "ぞ", "zo" )
+    , ( "だ", "da" )
+    , ( "ぢ", "dji" )
+    , ( "づ", "dzu" )
+    , ( "で", "de" )
+    , ( "ど", "do" )
+    , ( "ば", "ba" )
+    , ( "び", "bi" )
+    , ( "ぶ", "bu" )
+    , ( "べ", "be" )
+    , ( "ぼ", "bo" )
+    ]
+
+
+hiraganasYouon =
+    [ ( "きゃ", "kya" )
+    , ( "きゅ", "kyu" )
+    , ( "きょ", "kyo" )
+    , ( "しゃ", "sha" )
+    , ( "しゅ", "shu" )
+    , ( "しょ", "sho" )
+    , ( "ちゃ", "cha" )
+    , ( "ちゅ", "chu" )
+    , ( "ちょ", "cho" )
+    , ( "にゃ", "nya" )
+    , ( "にゅ", "nyu" )
+    , ( "にょ", "nyo" )
+    , ( "ひゃ", "hya" )
+    , ( "ひゅ", "hyu" )
+    , ( "ひょ", "hyo" )
+    , ( "みゃ", "mya" )
+    , ( "みゅ", "myu" )
+    , ( "みょ", "myo" )
+    ]
+
+
+hiraganasSokuon =
+    [ ( "っか", "kka" )
+    , ( "っき", "kki" )
+    , ( "っく", "kku" )
+    , ( "っけ", "kke" )
+    , ( "っこ", "kko" )
+    , ( "っさ", "ssa" )
+    , ( "っし", "sshi" )
+    , ( "っす", "ssu" )
+    , ( "っせ", "sse" )
+    , ( "っそ", "sso" )
+    , ( "った", "tta" )
+    , ( "っち", "tchi" )
+    , ( "っつ", "ttsu" )
+    , ( "って", "tte" )
+    , ( "っと", "tto" )
+    , ( "っば", "bba" )
+    , ( "っび", "bbi" )
+    , ( "っぶ", "bbu" )
+    , ( "っべ", "bbe" )
+    , ( "っぼ", "bbo" )
+    , ( "っぱ", "ppa" )
+    , ( "っぴ", "ppi" )
+    , ( "っぷ", "ppu" )
+    , ( "っぺ", "ppe" )
+    , ( "っぽ", "ppo" )
     ]
 
 
@@ -555,7 +580,7 @@ view model =
     E.row [ E.centerX, E.spacing 8 ]
         [ E.column [ E.height E.fill, E.paddingXY 64 32, E.centerX, EBO.rounded 8, EBO.width 1 ]
             [ E.paragraph [ EF.size 64 ]
-                [ E.text (String.fromList model.hiraganas)
+                [ E.text (String.join "" model.hiraganas)
                 ]
             , E.paragraph [ E.paddingXY 0 16 ]
                 [ if model.error then
@@ -667,6 +692,16 @@ view model =
                 { onChange = OnInput << HiraganasDakuten
                 , label = "Dakuten ゛"
                 , checked = model.options.hiraganasDakuten
+                }
+            , viewCheckbox
+                { onChange = OnInput << HiraganasYouon
+                , label = "Youon ゃゅょ"
+                , checked = model.options.hiraganasYouon
+                }
+            , viewCheckbox
+                { onChange = OnInput << HiraganasSokuon
+                , label = "Sokuon っ"
+                , checked = model.options.hiraganasSokuon
                 }
             ]
         ]
