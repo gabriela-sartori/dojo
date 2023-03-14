@@ -103,7 +103,7 @@ init flags =
     in
     ( { initModel
         | options = options
-        , device = E.classifyDevice { width = flags.windowHeight, height = flags.windowHeight }
+        , device = E.classifyDevice { width = flags.windowWidth, height = flags.windowHeight }
       }
     , generateHiraganas options
     )
