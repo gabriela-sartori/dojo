@@ -1,7 +1,7 @@
-port module Ports exposing (save)
+port module Ports exposing (saveHiragana)
 
 
-port save :
+port saveHiragana :
     { level : Int
     , hiraganasVowels : Bool
     , hiraganasK : Bool
@@ -13,6 +13,7 @@ port save :
     , hiraganasY : Bool
     , hiraganasR : Bool
     , hiraganasW : Bool
+    , hiraganasSeion : Bool
     , hiraganasHandakuten : Bool
     , hiraganasDakuten : Bool
     , hiraganasYouon : Bool

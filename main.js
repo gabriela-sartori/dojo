@@ -10,11 +10,18 @@ if (process.env.NODE_ENV === "development") {
 }
 
 const flags = {
-    options: localStorage.options ? localStorage.options : null
+    hiraganaOptions: localStorage.hiraganaOptions ? localStorage.hiraganaOptions : null,
+    katakanaOptions: localStorage.katakanaOptions ? localStorage.katakanaOptions : null,
+    windowWidth: window.innerWidth,
+    windowHeight: window.innerHeight,
 }
 const root = document.querySelector("#app div")
 const app = Elm.Main.init({ node: root, flags })
 
-app.ports.save.subscribe(options => {
-    localStorage.options = JSON.stringify(options)
+app.ports.saveHiragana.subscribe(options => {
+    localStorage.hiraganaOptions = JSON.stringify(options)
 })
+
+// app.ports.saveKatakana.subscribe(options => {
+//     localStorage.katakanaOptions = JSON.stringify(options)
+// })

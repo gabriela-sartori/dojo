@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Events
 import Dict
 import Element as E
 import Element.Border as EBO
@@ -14,13 +15,12 @@ import Random
 import Set exposing (Set)
 
 
-
--- TODO: options to include dakuon and combos
--- TODO: katakana version
-
-
 type alias Flags =
-    { options : Maybe String }
+    { hiraganaOptions : Maybe String
+    , katakanaOptions : Maybe String
+    , windowWidth : Int
+    , windowHeight : Int
+    }
 
 
 main : Program Flags Model Msg
@@ -29,7 +29,7 @@ main =
         { init = init
         , view = E.layout [] << view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }
 
 
@@ -42,6 +42,7 @@ type alias Model =
     , errors : Set String
     , reviewing : Bool
     , options : Options
+    , device : E.Device
     }
 
 
@@ -57,6 +58,7 @@ type alias Options =
     , hiraganasY : Bool
     , hiraganasR : Bool
     , hiraganasW : Bool
+    , hiraganasSeion : Bool
     , hiraganasHandakuten : Bool
     , hiraganasDakuten : Bool
     , hiraganasYouon : Bool
@@ -69,7 +71,7 @@ init flags =
     let
         options : Options
         options =
-            flags.options
+            flags.hiraganaOptions
                 |> Maybe.andThen
                     (\unparsedOptions ->
                         let
@@ -77,7 +79,7 @@ init flags =
                             decoder =
                                 JD.succeed Options
                                     |> JD.optional "level" JD.int 1
-                                    |> JD.optional "hiraganasVowels" JD.bool False
+                                    |> JD.optional "hiraganasVowels" JD.bool True
                                     |> JD.optional "hiraganasK" JD.bool False
                                     |> JD.optional "hiraganasS" JD.bool False
                                     |> JD.optional "hiraganasT" JD.bool False
@@ -87,6 +89,7 @@ init flags =
                                     |> JD.optional "hiraganasY" JD.bool False
                                     |> JD.optional "hiraganasR" JD.bool False
                                     |> JD.optional "hiraganasW" JD.bool False
+                                    |> JD.optional "hiraganasSeion" JD.bool True
                                     |> JD.optional "hiraganasHandakuten" JD.bool False
                                     |> JD.optional "hiraganasDakuten" JD.bool False
                                     |> JD.optional "hiraganasYouon" JD.bool False
@@ -98,7 +101,10 @@ init flags =
                     )
                 |> Maybe.withDefault initOptions
     in
-    ( { initModel | options = options }
+    ( { initModel
+        | options = options
+        , device = E.classifyDevice { width = flags.windowHeight, height = flags.windowHeight }
+      }
     , generateHiraganas options
     )
 
@@ -113,6 +119,7 @@ initModel =
     , errors = Set.empty
     , reviewing = False
     , options = initOptions
+    , device = { class = E.Desktop, orientation = E.Landscape }
     }
 
 
@@ -129,6 +136,7 @@ initOptions =
     , hiraganasY = False
     , hiraganasR = False
     , hiraganasW = False
+    , hiraganasSeion = True
     , hiraganasHandakuten = False
     , hiraganasDakuten = False
     , hiraganasYouon = False
@@ -137,7 +145,8 @@ initOptions =
 
 
 type Msg
-    = GotHiraganas (List String)
+    = GotWindowSize Int Int
+    | GotHiraganas (List String)
     | OnInput InputType
     | Submit
     | ChangeLevel
@@ -157,6 +166,7 @@ type InputType
     | HiraganasY Bool
     | HiraganasR Bool
     | HiraganasW Bool
+    | HiraganasSeion Bool
     | HiraganasHandakuten Bool
     | HiraganasDakuten Bool
     | HiraganasYouon Bool
@@ -166,6 +176,9 @@ type InputType
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GotWindowSize width height ->
+            ( { model | device = E.classifyDevice { width = width, height = height } }, Cmd.none )
+
         GotHiraganas hiraganas_ ->
             ( { model | hiraganas = hiraganas_ }, Cmd.none )
 
@@ -209,6 +222,9 @@ update msg model =
                         HiraganasW value ->
                             { model | options = { options | hiraganasW = value } }
 
+                        HiraganasSeion value ->
+                            { model | options = { options | hiraganasSeion = value } }
+
                         HiraganasHandakuten value ->
                             { model | options = { options | hiraganasHandakuten = value } }
 
@@ -220,28 +236,8 @@ update msg model =
 
                         HiraganasSokuon value ->
                             { model | options = { options | hiraganasSokuon = value } }
-
-                noCharacterSelected : Bool
-                noCharacterSelected =
-                    let
-                        o : Options
-                        o =
-                            newModel.options
-                    in
-                    [ o.hiraganasVowels
-                    , o.hiraganasK
-                    , o.hiraganasS
-                    , o.hiraganasT
-                    , o.hiraganasN
-                    , o.hiraganasH
-                    , o.hiraganasM
-                    , o.hiraganasY
-                    , o.hiraganasR
-                    , o.hiraganasW
-                    ]
-                        |> List.all not
             in
-            if noCharacterSelected then
+            if optionsToHiraganas newModel.options == [] then
                 ( model, Cmd.none )
 
             else
@@ -251,7 +247,7 @@ update msg model =
                         Cmd.none
 
                     _ ->
-                        Ports.save newModel.options
+                        Ports.saveHiragana newModel.options
                 )
 
         Submit ->
@@ -288,7 +284,7 @@ update msg model =
             ( { initModel | options = newOptions }
             , Cmd.batch
                 [ generateHiraganas newOptions
-                , Ports.save newOptions
+                , Ports.saveHiragana newOptions
                 ]
             )
 
@@ -303,9 +299,15 @@ update msg model =
             )
 
 
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Browser.Events.onResize GotWindowSize
+
+
 generateHiraganas : Options -> Cmd Msg
 generateHiraganas options =
     let
+        availableHiraganas : List String
         availableHiraganas =
             options
                 |> optionsToHiraganas
@@ -400,16 +402,16 @@ allHiraganas =
 
 optionsToHiraganas : Options -> List ( String, String )
 optionsToHiraganas options =
-    [ ( options.hiraganasVowels, hiraganasVowels )
-    , ( options.hiraganasK, hiraganasK )
-    , ( options.hiraganasS, hiraganasS )
-    , ( options.hiraganasT, hiraganasT )
-    , ( options.hiraganasN, hiraganasN )
-    , ( options.hiraganasH, hiraganasH )
-    , ( options.hiraganasM, hiraganasM )
-    , ( options.hiraganasY, hiraganasY )
-    , ( options.hiraganasR, hiraganasR )
-    , ( options.hiraganasW, hiraganasW )
+    [ ( options.hiraganasSeion && options.hiraganasVowels, hiraganasVowels )
+    , ( options.hiraganasSeion && options.hiraganasK, hiraganasK )
+    , ( options.hiraganasSeion && options.hiraganasS, hiraganasS )
+    , ( options.hiraganasSeion && options.hiraganasT, hiraganasT )
+    , ( options.hiraganasSeion && options.hiraganasN, hiraganasN )
+    , ( options.hiraganasSeion && options.hiraganasH, hiraganasH )
+    , ( options.hiraganasSeion && options.hiraganasM, hiraganasM )
+    , ( options.hiraganasSeion && options.hiraganasY, hiraganasY )
+    , ( options.hiraganasSeion && options.hiraganasR, hiraganasR )
+    , ( options.hiraganasSeion && options.hiraganasW, hiraganasW )
     , ( options.hiraganasHandakuten && options.hiraganasH, hiraganasHandakuten )
     , ( options.hiraganasDakuten && options.hiraganasK, hiraganasDakutenK )
     , ( options.hiraganasDakuten && options.hiraganasS, hiraganasDakutenS )
@@ -699,134 +701,169 @@ hiraganasSokuonDakuten =
 
 view : Model -> E.Element Msg
 view model =
-    E.row [ E.centerX, E.spacing 8 ]
-        [ E.column [ E.height E.fill, E.paddingXY 64 32, E.centerX, EBO.rounded 8, EBO.width 1 ]
-            [ E.paragraph [ EF.size 64 ]
-                [ E.text (String.join "" model.hiraganas)
-                ]
-            , E.paragraph [ E.paddingXY 0 16 ]
-                [ if model.error then
-                    E.text ("Correct: " ++ hiraganaToRomaji model.hiraganas)
+    let
+        mobile : Bool
+        mobile =
+            model.device.class == E.Phone || model.device.class == E.Tablet
+    in
+    if mobile then
+        E.column [ E.centerX, E.alignTop, E.spacing 8, E.padding 16 ]
+            [ viewPuzzle model
+            , viewOptions model.options mobile
+            ]
 
-                  else
-                    E.none
-                ]
-            , EI.text [ EF.size 24, onEnter Submit ]
-                { onChange = OnInput << Answer
-                , text = model.answer
-                , placeholder = Nothing
-                , label = EI.labelHidden "input"
-                }
-            , if model.reviewing then
-                E.paragraph [] []
+    else
+        E.row [ E.paddingEach { edges | top = 60 }, E.centerX, E.spacing 8 ]
+            [ viewPuzzle model
+            , viewOptions model.options mobile
+            ]
+
+
+viewPuzzle : Model -> E.Element Msg
+viewPuzzle model =
+    E.column [ E.height E.fill, E.paddingXY 64 32, E.centerX, EBO.rounded 8, EBO.width 1 ]
+        [ E.paragraph [ EF.size 64 ]
+            [ E.text (String.join "" model.hiraganas)
+            ]
+        , E.paragraph [ E.paddingXY 0 16 ]
+            [ if model.error then
+                E.text ("Correct: " ++ hiraganaToRomaji model.hiraganas)
 
               else
-                E.paragraph [ E.padding 16 ]
-                    [ E.text
-                        ("✅ "
-                            ++ String.fromInt model.corrects
-                            ++ " ❌ "
-                            ++ String.fromInt model.incorrects
-                        )
-                    ]
-            , E.el [ E.centerX, E.paddingXY 0 4 ] <|
-                viewButton ChangeLevel ("Level " ++ String.fromInt model.options.level)
-            , let
-                errors : Int
-                errors =
-                    Set.size model.errors
-
-                plural : String
-                plural =
-                    if errors == 1 then
-                        ""
-
-                    else
-                        "s"
-              in
-              if model.options.level > 1 || model.reviewing || errors == 0 then
                 E.none
+            ]
+        , EI.text [ EF.size 24, onEnter Submit ]
+            { onChange = OnInput << Answer
+            , text = model.answer
+            , placeholder = Nothing
+            , label = EI.labelHidden "input"
+            }
+        , if model.reviewing then
+            E.paragraph [] []
 
-              else
-                E.el [ E.centerX, E.paddingXY 0 4 ] <|
-                    viewButton Review ("Review " ++ String.fromInt errors ++ " error" ++ plural)
-            , E.el [ E.centerX, E.paddingXY 0 4 ] <|
-                viewButton Reset "Reset"
-            ]
-        , E.column [ E.height E.fill, E.paddingXY 64 32, E.spacing 12, E.centerX, EBO.rounded 8, EBO.width 1 ]
-            [ E.paragraph [ E.paddingEach { bottom = 16, top = 0, left = 0, right = 0 } ] [ E.text "Options" ]
-            , viewCheckbox
-                { onChange = OnInput << HiraganasVowels
-                , label = "Vowels"
-                , checked = model.options.hiraganasVowels
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasK
-                , label = "K-"
-                , checked = model.options.hiraganasK
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasS
-                , label = "S-"
-                , checked = model.options.hiraganasS
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasT
-                , label = "T-"
-                , checked = model.options.hiraganasT
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasN
-                , label = "N-"
-                , checked = model.options.hiraganasN
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasH
-                , label = "H-"
-                , checked = model.options.hiraganasH
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasM
-                , label = "M-"
-                , checked = model.options.hiraganasM
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasY
-                , label = "Y-"
-                , checked = model.options.hiraganasY
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasR
-                , label = "R-"
-                , checked = model.options.hiraganasR
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasW
-                , label = "W-"
-                , checked = model.options.hiraganasW
-                }
-            , E.el [ E.paddingXY 0 4 ] E.none
-            , viewCheckbox
-                { onChange = OnInput << HiraganasHandakuten
-                , label = "Handakuten ゜"
-                , checked = model.options.hiraganasHandakuten
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasDakuten
-                , label = "Dakuten ゛"
-                , checked = model.options.hiraganasDakuten
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasYouon
-                , label = "Youon ゃゅょ"
-                , checked = model.options.hiraganasYouon
-                }
-            , viewCheckbox
-                { onChange = OnInput << HiraganasSokuon
-                , label = "Sokuon っ"
-                , checked = model.options.hiraganasSokuon
-                }
-            ]
+          else
+            E.paragraph [ E.padding 16 ]
+                [ E.text
+                    ("✅ "
+                        ++ String.fromInt model.corrects
+                        ++ " ❌ "
+                        ++ String.fromInt model.incorrects
+                    )
+                ]
+        , E.el [ E.centerX, E.paddingXY 0 4 ] <|
+            viewButton ChangeLevel ("Level " ++ String.fromInt model.options.level)
+        , let
+            errors : Int
+            errors =
+                Set.size model.errors
+
+            plural : String
+            plural =
+                if errors == 1 then
+                    ""
+
+                else
+                    "s"
+          in
+          if model.options.level > 1 || model.reviewing || errors == 0 then
+            E.none
+
+          else
+            E.el [ E.centerX, E.paddingXY 0 4 ] <|
+                viewButton Review ("Review " ++ String.fromInt errors ++ " error" ++ plural)
+        , E.el [ E.centerX, E.paddingXY 0 4 ] <|
+            viewButton Reset "Reset"
+        ]
+
+
+viewOptions : Options -> Bool -> E.Element Msg
+viewOptions options mobile =
+    let
+        padding =
+            if mobile then
+                E.paddingXY 16 16
+
+            else
+                E.paddingXY 64 32
+    in
+    E.column [ E.height E.fill, E.width E.fill, padding, E.spacing 12, E.centerX, EBO.rounded 8, EBO.width 1 ]
+        [ E.paragraph [ E.paddingEach { bottom = 16, top = 0, left = 0, right = 0 } ] [ E.text "Options" ]
+        , viewCheckbox
+            { onChange = OnInput << HiraganasVowels
+            , label = "Vowels"
+            , checked = options.hiraganasVowels
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasK
+            , label = "K-"
+            , checked = options.hiraganasK
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasS
+            , label = "S-"
+            , checked = options.hiraganasS
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasT
+            , label = "T-"
+            , checked = options.hiraganasT
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasN
+            , label = "N-"
+            , checked = options.hiraganasN
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasH
+            , label = "H-"
+            , checked = options.hiraganasH
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasM
+            , label = "M-"
+            , checked = options.hiraganasM
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasY
+            , label = "Y-"
+            , checked = options.hiraganasY
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasR
+            , label = "R-"
+            , checked = options.hiraganasR
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasW
+            , label = "W-"
+            , checked = options.hiraganasW
+            }
+        , E.el [ E.paddingXY 0 4 ] E.none
+        , viewCheckbox
+            { onChange = OnInput << HiraganasSeion
+            , label = "Seion (no modifiers)"
+            , checked = options.hiraganasSeion
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasHandakuten
+            , label = "Handakuten ゜"
+            , checked = options.hiraganasHandakuten
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasDakuten
+            , label = "Dakuten ゛"
+            , checked = options.hiraganasDakuten
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasYouon
+            , label = "Youon ゃゅょ"
+            , checked = options.hiraganasYouon
+            }
+        , viewCheckbox
+            { onChange = OnInput << HiraganasSokuon
+            , label = "Sokuon っ"
+            , checked = options.hiraganasSokuon
+            }
         ]
 
 
@@ -868,3 +905,7 @@ onEnter msg =
                     )
             )
         )
+
+
+edges =
+    { top = 0, bottom = 0, left = 0, right = 0 }
